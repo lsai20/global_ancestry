@@ -97,7 +97,7 @@ def parseFile(fileName, pop):
 
 		# after all snps are appended, convert to arrays
 		for indiv in indivs:
-			indiv.geno = np.array(indiv.geno)
+			indiv.geno = np.array(indiv.geno, dtype = int) # TODO do i want int8? small ints
 
 	return indivs
 
