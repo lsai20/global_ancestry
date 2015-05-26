@@ -20,6 +20,8 @@ MKK = 'MKK' # maasai in kinyawa, kenya
 TSI = 'TSI' # toscan in italy
 YRI = 'YRI' # yoruba in italy
 
+#truePopsL = [ASW, CEU, CHB, CHD, GIH, JPT, LWK, MEX, MKK, TSI, YRI]
+
 ### Classes ###
 class FullGenotype:
 	'''reference and alternate allele(s)'''
@@ -52,6 +54,7 @@ class Individual:
 		self.truePop = pop 	# keep track of pop for later graph coloring/labeling
 		self.indivID = indivID
 
+		self.j = None 		# their index in indivs list and corresponding geno matrix
 		self.assignedPop = None
 		self.geno = [] 		# will be converted to np array once all snps read in
 		self.famID = None 	# mom, dad, child all have same famID
@@ -119,13 +122,14 @@ def parseMulti(fileNameL):
 
 	return indivs
 
-
-def addFamilyInfo(indivs, famInfoFile = "relationships_w_pops_121708.txt"):
-	'''add parent IDs to Individuals from hapmap file'''
+def addFamilyInfo(indivs, famInfoFile = "relationships_w_pops_121708.txt", isAllIndivs = True):
+	'''add parent IDs to Individuals from hapmap file.
+	if this is all indivs (final order of lsit), also add index'''
 	# column order is:
 	# FID	IID	dad	mom	sex	pheno	population
 
 	dataD = {}
+	j = 0
 
 	# parse fam info file
 	with open(famInfoFile) as f:
@@ -143,8 +147,23 @@ def addFamilyInfo(indivs, famInfoFile = "relationships_w_pops_121708.txt"):
 		indiv.dadID = dadID
 		indiv.sex = int(sex) # 0 = unknown, 1 or 2 otherwise
 
+
+		# add index only if this is the complete list of indiv in final order
+		if isAllIndivs: 
+			indiv.j = j
+			j += 1
+
 	return # indivs updated
 
+def makeGenoArr(indivs):
+	'''return np array of genotypes only, in order'''
+	N = len(indivs)
+	M = len(indivs[0].genos)
+	genoArr = np.empty([N,M]) # each row is indiv genotype, each col a snp
+	for j in range(N):
+		genoArr[j] = indivs[j].genos
+
+	return genoArr
 
 def checkSNPorderPair(file1, file2):
 	'''check that files contain the same snps in the same order.
@@ -212,4 +231,5 @@ print("Result of SNP order check allOK: %b\n" % allOK)
 # read in Individuals
 indivs = parseMulti(fileNameL)
 addFamilyInfo(indivs)
+genoArr = makeGenoArr(indivs)
 
