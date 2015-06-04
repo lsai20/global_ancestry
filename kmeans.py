@@ -1,7 +1,9 @@
+import random
 import numpy as np
 import scipy.stats as stat 
-import scipy.spatial.distance as sc.dist
+import scipy.spatial.distance as spdist
 from copy import copy, deepcopy
+from parseHapmap import *
 
 # lsgai
 # k-means clustering (lloyd's algorithm)
@@ -45,60 +47,162 @@ class Center:
 		self.members = [] # list of member indices [j_1, j_2, ...]
 
 
-def kmeans(indivs, genos, k, maxIter = 10000):
+def pickInitial(indivs, k):
+	'''randomly pick centers. return the centers if successful, 
+	return None if any centers are duplicates (identical genotype/same position)
+	'''
+	# NOTE: must have at least k unique values for genotype
+	# if you have multiple centers in exact same position, 
+	#	other points won't have a unique closest center. may end up with some centers empty depending on tie break.
+	N = len(indivs)
+	M = len(indivs[0].geno)
+
+	alreadyUsedGenos = [] # can't use set bc genos are np array/list (unhashable)
+	numTries = 0
+	label = 0 	# clusterid ranges from 0 to k-1
+	centers = []
+
+	randomJs = random.sample(range(N), k)
+
+	for j in randomJs: 	# j = which indiv's geno is selected
+		# (have to convert to list for checking membership)
+		if list(indivs[j].geno) in alreadyUsedGenos:
+			return None
+
+		center = Center(label, indivs[j].geno)
+		centers.append(center)
+		alreadyUsedGenos.append(list(indivs[j].geno))
+		label += 1
+
+	return centers
+
+
+def kmeans(indivs, genos, k, maxIter = 10000, verbose = False):
 	'''run lloyds on a list of Individuals'''
+
 	# note: can't use only array of genos as input - need to track labels for indivs for visualizing
 	# return: indivs list updated with assigned pop, or dict of assigned pop, or something
 
+	N = len(indivs)
+	M = len(indivs[0].geno)
+
 	# initial step - pick k genos to be centers at random
-	centers = []
-	label = 0 	# clusterid ranges from 0 to k-1
-	randomJs = random.sample(range(N), k):
-	for j in randomJs: 	# j = which indiv's geno is selected
-		center = Center(label, indivs[j].geno)
-		centers.append(center)
-		label += 1
 
+	# initialize randomly up to 3+ times (can't allow duplicate values in centers)
+	# (allow more chances if k small, i.e. k = 2 for 50/50 split of identical values is ok, but may need more chances)
+	# after that, warn user to pick smaller k
+	# this is kind of dumb, but k << N, M so w/e
+	numTries = 3 + max(0,5-k)**2
+	for i in range(numTries):
+		centers = pickInitial(indivs, k)
+		if centers: # if we successfully picked centers, use them
+			break
 
+	# if fail to pick within allowed tries
+	if centers == None:
+		print("WARNING: unable to pick k = %d unique initial center values after 3+ attempts" % k)
+		print("Your data may not contain enough unique values for k = %d clusters, or the cluster sizes may be very uneven." % k)
+		print("Consider using a smaller k, or using an alternative to k-means clustering.")
+		print("Now quitting.")
+		#print("ERROR: failed to pick unique initial center values after 3 attempts. Quitting.")
+		return
+
+	# the loop
 	for t in range(maxIter):
+		# clear centers for upcoming round
+		for center in centers:
+			center.members = []
 
 		# each Individual finds its closest center, which then tracks that Individual
-		center.members = [] # clear slate from any prev run
 		for indiv in indivs:
-			closestLabel = np.argmin([sc.dist(indiv.geno, center.geno) for center in centers])
+			closestLabel = np.argmin([spdist.euclidean(indiv.geno, center.geno) for center in centers])
+			# NOTE: this indiv.j step requires indiv.j to correspond to the j which is indiv's actual position in list
 			centers[closestLabel].members.append(indiv.j)
 
 		# each center finds the centroid of its own cluster
-		haveAnyUpdated = False 	# if it converges (no update to centers), bail
+		noneUpdated = True 	# if it converges (no update to centers), bail
 
 		for center in centers:
 			a = genos[center.members,] # rows that are member of this center
+
 			centroidGeno = np.mean(a, axis = 0) # row of col avgs
-			if center.geno != centroidGeno:
-				haveAnyUpdated = True
+			if not np.array_equal(centroidGeno, center.geno): # if new centroid != current center
+				print("TODO center %d was updated" % center.label)
+				noneUpdated = False
 				center.geno = centroidGeno
 
-		if !haveAnyUpdated: # if there were no changes
+		###
+		if verbose:
+			# update indivs with intermediate cluster assignments
+			'''
+			for center in centers:
+				for j in center.members:
+					indivs[j].assignedPop = center.label
+
+			print('\nK-MEANS')
+			countClustering(indivs, k) # TODO verbose, see how clusters change over time
+			print("\n")
+
+			print("\ndistances in each cluster")
+			print([int(
+					sum([spdist.euclidean(center.geno, indivs[j].geno) for j in center.members])) 
+				for center in centers])
+			print("members in each cluster")
+			print([[indivs[j].geno[0] for j in center.members]
+				for center in centers ]
+			)
+			'''
+			print(kmeansObj(indivs, centers))
+			#print(int( kmeansObj(indivs, centers) ))  # round to int
+		###
+
+		if noneUpdated: # if there were no changes
 			break
 
-		centers = newCenters
+
+
 
 	# update indivs with final cluster assignments
 	for center in centers:
 		for j in center.members:
 			indivs[j].assignedPop = center.label
 
-	return
+	return centers
 
 
-truePopsL = [CHB, MKK]
-
-def countClustering(indivs, truePopsL = , k):
+def countClustering(indivs, k):
 	'''create count dict of clustered indivs, given number of clusters'''
 
-
+	clusterL = [[] for i in range(k)]
 	for indiv in indivs:
-		indiv.truePop
+		clusterL[indiv.assignedPop].append(indiv.truePop)
+		#clusterL[indiv.assignedPop].append((indiv.truePop, indiv.famID))
+		#clusterL[indiv.assignedPop].append(indiv.famID)
+
+	#clusterL[0].sort()
+	#clusterL[1].sort()
+	#famLL = [[indiv.fam for indiv in cluster] for cluster in clusterL]
+
+	for i in range(k):
+		print("\ncluster %d" % i)
+		print(sorted(clusterL[i]))
+
+	return clusterL
+
+def kmeansObj(indivs, centers):
+	'''measure cluster homogenity with sum of intercluster distance'''
+	# requires indivs to be in order of indiv.j
+	return sum([spdist.euclidean(center.geno, indivs[j].geno) 
+		for center in centers 
+			for j in center.members])
+	
+
+#indivs, genoArr = runParse()
+k = 2
+centers = kmeans(indivs, genoArr, k, maxIter = 2, verbose = True)
+clusterL = countClustering(indivs, k)
+
+
 
 
 

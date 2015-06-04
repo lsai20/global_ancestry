@@ -1,6 +1,9 @@
+import random
 import numpy as np
 
 # lsgai
+
+## TODO missing values?? (genotypes of NN)
 
 ### Globals ###
 GENO_LEN = 10 	# num SNPs in geno # may not know ahead of time bc filter sites
@@ -56,11 +59,29 @@ class Individual:
 
 		self.j = None 		# their index in indivs list and corresponding geno matrix
 		self.assignedPop = None
+		#self.assignedPop2 = None # TODO if i want to compare how same indiv is clustered under two schemes?
 		self.geno = [] 		# will be converted to np array once all snps read in
 		self.famID = None 	# mom, dad, child all have same famID
 		self.momID = None
 		self.dadID = None
 		self.sex = None		# 0 = unknown, 1 or 2 otherwise
+
+	def prettyprint(self, verbose = False, printGeno = False):
+		'''print fields of an individual. not that pretty but ok'''
+		print("indivID:\t%s" % self.indivID)
+		print("truePop:\t%s" % self.truePop)
+		print("assignedPop:\t%s" % self.assignedPop)
+
+		if verbose:
+			print("famID:\t\t%s" % self.famID)
+			print("momID:\t\t%s" % self.momID)
+			print("dadID:\t\t%s" % self.dadID)
+			print("sex:\t\t%s" % self.sex)
+
+		if printGeno:
+			print("geno:\n")
+			print(list[self.geno])
+
 
 
 def parseFile(fileName, pop):
@@ -95,6 +116,12 @@ def parseFile(fileName, pop):
 			# update each individual's genotype with current snp
 			for j in range(numIndiv):
 				geno = lineL[11 + j] # e.g. AG
+				# NN indicates missing values. arbitrarily handle NN by making it het
+				# not the most statistically robust way, but NN rare and it's easy
+				if geno == "NN":
+					indivs[j].geno.append(1)
+					continue
+
 				g = (geno[0] == alt) + (geno[1] == alt) # e.g. 0/1/2, 0 for ref
 				indivs[j].geno.append(g)
 
@@ -105,14 +132,16 @@ def parseFile(fileName, pop):
 	return indivs
 
 
-def parseMulti(fileNameL):
+def parseMulti(fileNameL, verbose = False):
 	'''return list of Individuals, combined from all files in fileNameL'''
 
 	indivs = [] # all individuals
 
 	for fileName in fileNameL:
+		if verbose:
+			print("processing %s" % fileName)
 		# get chr and population from file name
-		temp = fileNam.split('_')
+		temp = fileName.split('_')
 		chrm = temp[1] # e.g. 'chr22', 'chrX'
 		pop = temp[2]  # e.g. ASW
 
@@ -120,16 +149,19 @@ def parseMulti(fileNameL):
 		popIndivs = parseFile(fileName, pop)
 		indivs = indivs + popIndivs
 
+	if verbose:
+		print("\n")
+
 	return indivs
 
-def addFamilyInfo(indivs, famInfoFile = "relationships_w_pops_121708.txt", isAllIndivs = True):
-	'''add parent IDs to Individuals from hapmap file.
-	if this is all indivs (final order of lsit), also add index'''
+# requires individuals to be in order when adding the j
+def addFamilyInfo(indivs, famInfoFile = "relationships_w_pops_121708.txt", shuffle = True):
+	'''add parent IDs to complete list of Individuals from hapmap file.
+	also (optionally) shuffle. add index of final order'''
 	# column order is:
 	# FID	IID	dad	mom	sex	pheno	population
 
-	dataD = {}
-	j = 0
+	dataD = {} # info from the famInfo file, keyed by indivID
 
 	# parse fam info file
 	with open(famInfoFile) as f:
@@ -141,29 +173,35 @@ def addFamilyInfo(indivs, famInfoFile = "relationships_w_pops_121708.txt", isAll
 
 	# add new info to exisiting indivs
 	for indiv in indivs:
-		famID, dadID, momID, sex = dataD[indivID]
+		famID, dadID, momID, sex = dataD[indiv.indivID]
 		indiv.famID = famID
 		indiv.momID = momID
 		indiv.dadID = dadID
 		indiv.sex = int(sex) # 0 = unknown, 1 or 2 otherwise
 
+	if shuffle:
+		random.shuffle(indivs)	
 
-		# add index only if this is the complete list of indiv in final order
-		if isAllIndivs: 
-			indiv.j = j
-			j += 1
+	# add indiv.j only once individuals are in final order
+	j = 0
+	for indiv in indivs:
+		indiv.j = j
+		j += 1
 
 	return # indivs updated
+
 
 def makeGenoArr(indivs):
 	'''return np array of genotypes only, in order'''
 	N = len(indivs)
-	M = len(indivs[0].genos)
+	M = len(indivs[0].geno)
+
 	genoArr = np.empty([N,M]) # each row is indiv genotype, each col a snp
 	for j in range(N):
-		genoArr[j] = indivs[j].genos
+		genoArr[j] = indivs[j].geno
 
 	return genoArr
+
 
 def checkSNPorderPair(file1, file2):
 	'''check that files contain the same snps in the same order.
@@ -212,24 +250,35 @@ def checkSNPorderPair(file1, file2):
 
 
 def checkSNPorder(fileNameL):
+	'''return True if all files are ok, False otherwise'''
 	firstFile = fileNameL[0]
 	allOK = True
 
 	for otherFile in fileNameL[1:]:
 		allOK = allOK & checkSNPorderPair(firstFile, otherFile)
 
+	return allOK
 
-### Process input files
-lsf = open("ls_data.txt")
-fileNameL = [line.strip() for line in lsf]
-lsf.close()
 
-# check input order
-allOK = checkSNPorder(fileNameL)
-print("Result of SNP order check allOK: %b\n" % allOK)
+def runParse(lsf = "ls_data.txt", checkFiles = False):
+	### Process input files
+	lsf = open("ls_data.txt")
+	fileNameL = [line.strip() for line in lsf]
+	lsf.close()
 
-# read in Individuals
-indivs = parseMulti(fileNameL)
-addFamilyInfo(indivs)
-genoArr = makeGenoArr(indivs)
+	# check input order
+	if checkFiles:
+		allOK = checkSNPorder(fileNameL)
+		print("Result of SNP order check allOK: %s\n" % allOK)
+
+	# read in Individuals
+	indivs = parseMulti(fileNameL, verbose = True)
+	addFamilyInfo(indivs)
+	genoArr = makeGenoArr(indivs)
+
+	return indivs, genoArr
+
+
+
+
 
