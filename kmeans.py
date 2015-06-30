@@ -127,7 +127,6 @@ def kmeans(indivs, genos, k, maxIter = 10000, verbose = False):
 
 			centroidGeno = np.mean(a, axis = 0) # row of col avgs
 			if not np.array_equal(centroidGeno, center.geno): # if new centroid != current center
-				print("TODO center %d was updated" % center.label)
 				noneUpdated = False
 				center.geno = centroidGeno
 
@@ -152,14 +151,15 @@ def kmeans(indivs, genos, k, maxIter = 10000, verbose = False):
 				for center in centers ]
 			)
 			'''
-			print(kmeansObj(indivs, centers))
+			pass
+			#print(kmeansObj(indivs, centers))
 			#print(int( kmeansObj(indivs, centers) ))  # round to int
 		###
 
 		if noneUpdated: # if there were no changes
+			if verbose:
+				print("Stopped at iteration %d" % t)
 			break
-
-
 
 
 	# update indivs with final cluster assignments
@@ -196,12 +196,12 @@ def kmeansObj(indivs, centers):
 		for center in centers 
 			for j in center.members])
 	
-
-#indivs, genoArr = runParse()
+'''
+indivs, genoArr = runParse()
 k = 2
 centers = kmeans(indivs, genoArr, k, maxIter = 2, verbose = True)
 clusterL = countClustering(indivs, k)
-
+'''
 
 
 
