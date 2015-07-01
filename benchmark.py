@@ -51,48 +51,52 @@ print("Using DEU, CHB and MKK") # TODO update if i change pops
 # TODO refactor so for N in range(200) you could run benchmark and append its return values to appropriate lists
 # actual N = 94 + 171 + 165 for CHB + MKK + CEU
 # actual M = 20,000+
+# true K = 3 (CHB, MKK, CEU)
+
 def runBenchmark(N=200, M=10000, K=3):
 	# TODO change N. 
 	# varying N
-	kmeansTimes_N = []
-	kmeansObj_N = []
-
-	kmeansTrue_N = [] 		# kmeansTrue_N[n][k] is majority pop of cluster k, using n individuals
-	kmeansTrueFrac_N = [] 	# (% of cluster 1 that is max, % of cluster 2 that is max) 
+	kmeansTimes = []
+	kmeansMajPops = [] 		# kmeansMaxPops[s] is majority pop of cluster s
+	kmeansMajFracs = [] 	# kmeansMaxFracs[s] = % cluster s that is max 
 	# note that order of clusters will vary from run to run, so track which true pop with each cluster
 	#	along with true frac count
 
 
-		# use a fresh copy for each test 
-		# (indivs already shuffled, probably still better to random sample but w/e)
+	# sample N indivs without replacement
+	indices = random.choice(range(len(genoArr), N))
+	indivs_copy = indivs[indices]
+	genoArr_copy = genoArr[indices]
 
-		# K-MEANS
-		indivs_copy = copy.deepcopy(indivs[:N])
-		genoArr_copy = copy.deepcopy(genoArr[:N])
+	# old version: just take first N since already shuffled
+	#indivs_copy = copy.deepcopy(indivs[:N])
+	#genoArr_copy = copy.deepcopy(genoArr[:N])
 
-		k = 3
+	k = K
 
-		def kmeans_i():
-			'''zero input fxn for timeit'''
-			return kmeans.kmeans(indivs_copy, genoArr_copy, k)
+	def kmeans_i():
+		'''zero input fxn for timeit'''
+		return kmeans.kmeans(indivs_copy, genoArr_copy, k)
 
-		# timing kmeans
-		time = timeit.timeit(kmeans_i, number = 1) # only run once per data pt
-		kmeansTimes_N.append(time)
+	# timing kmeans
+	time = timeit.timeit(kmeans_i, number = 1) # only run once per data pt
+	kmeansTimes.append(time)
 
-		# measure with kmeans objective fxn
-		centers = kmeans.kmeans(indivs_copy, genoArr_copy, k, maxIter = 1000, verbose = True)
-		kmeansObj_N.append(kmeans.kmeansObj(indivs_copy, centers))
-		majPops, majFracs, clusterSizes = majorityPop(indivs_copy, k)
+	# measure with kmeans objective fxn
+	centers = kmeans.kmeans(indivs_copy, genoArr_copy, k, maxIter = 1000, verbose = True)
+	kmeansObj = kmeans.kmeansObj(indivs_copy, centers)
+	majPops, majFracs, clusterSizes = majorityPop(indivs_copy, k)
 
-		kmeansTrue_N.append(majPops)
-		kmeansTrueFrac_N.append(majFracs)
+	kmeansMajPops.append(majPops)
+	kmeansMajFracs.append(majFracs)
 
 
-		# weight mean by size of cluster, not useful atm
-		# ex/ don't weight homogeneity equal for cluster with 1 indiv and cluster with 1000
-		kmeansTrueFrac_N_avg = 1.0*sum(kmeansTrueFrac_N[i]*kmeans)/k
+	# TODO should weight mean by size of cluster, not useful atm
+	# TODO don't weight homogeneity equal for cluster with 1 indiv and cluster with 1000
+	kmeansMajFrac_avg = 1.0*sum(kmeansMajFracs*kmeans)/k
 
+
+	return kmeansObj, kmeansMajFrac_avg, #kmeansTimes, kmeansMajPops, kmeansMajFracs
 
 
 # TODO print, or work with the variables interactively to make graphs
@@ -105,31 +109,6 @@ for N in range(20, 200, 10): # could change skip size to get more data
 
 
 # TODO also vary M
-'''
-# varying K
-kmeansTimes_K = []
-kmeansObj_K = []
-kmeansTrue_K = [] # (% of cluster 1 that is max, % of cluster 2 that is max) 
-
-# K-means, varying K with indivs from 2 pops (using all indivs)
-for K in range(10):
-	k = K
-
-	indivs_copy = copy.deepcopy(indivs[:N])
-	genoArr_copy = copy.deepcopy(genoArr_copy[:N])
-
-	def kmeans_i():
-		#zero input fxn for timeit
-		return kmeans(indivs_copy, genoArr_copy, k)
-
-
-	# timing kmeans
-	time = timeit.timeit(kmeans_i, number = 1) # only run once per data pt
-	centers = kmeans(indivs, genoArr, k, maxIter = 1000, verbose = True)
-	kobjValue = kmeansObj(indivs, centers)
-'''
-
-
 
 '''
 # repeat tests for EM
