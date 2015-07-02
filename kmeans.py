@@ -100,7 +100,7 @@ def kmeans(indivs, genos, k, maxIter = 10000, verbose = False):
 
 	# if fail to pick within allowed tries
 	if centers == None:
-		print("WARNING: unable to pick k = %d unique initial center values after 3+ attempts" % k)
+		print("ERROR: unable to pick k = %d unique initial center values after 3+ attempts" % k)
 		print("Your data may not contain enough unique values for k = %d clusters, or the cluster sizes may be very uneven." % k)
 		print("Consider using a smaller k, or using an alternative to k-means clustering.")
 		print("Now quitting.")

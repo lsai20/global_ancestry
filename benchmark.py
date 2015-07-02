@@ -45,13 +45,12 @@ def majorityPop(indivs, k):
 
 def runBenchmark(N=200, M=10000, K=3):
 
-
 	# note that order of clusters will vary from run to run, so track which true pop with each cluster
 	#	along with true frac count
 
 	# sample N indivs without replacement, and also get first M snps for each geno
 	indices = random.sample(range(len(genoArr)), N)
-	indivs_copy = np.array([indivs[i] for i in indices])
+	indivs_copy = np.array([copy.deepcopy(indivs[i]) for i in indices])
 	for i in range(N):
 		indivs_copy[i].geno = np.array(indivs_copy[i].geno[:M])
 		indivs_copy[i].j = i 		# also update position in new indiv list
@@ -141,17 +140,16 @@ K = 3
 print("Benchmarking K-means, varying M with N = %d, K = %d" % (N, K))
 
 # lists of results
-kmeans_M = [] # the value of N used for the test
+kmeans_M = range(200, 20000, 200) # the value of N used for the test
 kmeansObj_M = []
 kmeansMajFrac_avg_M = []
 kmeansTime_M = []
 kmeansMajPops_M = []
 kmeansMajFracs_M = []
 
-for M in range(200, 20000, 200): 
+for M in kmeans_M: 
 	print("Now testing M = %d" % M)
 	kmeansObj, kmeansMajFrac_avg, kmeansTime, kmeansMajPops, kmeansMajFracs = runBenchmark(N, M, K)
-	kmeans_M.append(M)
 	kmeansObj_M.append(kmeansObj)
 	kmeansMajFrac_avg_M.append(kmeansMajFrac_avg)
 	kmeansTime_M.append(kmeansTime)
