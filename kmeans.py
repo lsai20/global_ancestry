@@ -2,7 +2,6 @@ import random
 import numpy as np
 import scipy.stats as stat 
 import scipy.spatial.distance as spdist
-from copy import copy, deepcopy
 from parseHapmap import *
 
 # lsgai
