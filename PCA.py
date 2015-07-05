@@ -9,35 +9,39 @@ import numpy as np
 from sklearn.decomposition import PCA
 
 
-# example
-X = np.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]])
-pca = PCA(n_components=2)
-pca.fit(X)
-#print(pca.explained_variance_ratio_) 
-#[ 0.99244...  0.00755...]
+def examples():
+	# example
+	X = np.array([[-1, -1], [-2, -1], [-3, -2], [1, 1], [2, 1], [3, 2]])
+	pca = PCA(n_components=2)
+	pca.fit(X)
+	#print(pca.explained_variance_ratio_) 
+	#[ 0.99244...  0.00755...]
 
 
-indivs, genoArr = parseHapmap.runParse()
+	indivs, genoArr = parseHapmap.runParse()
+	genoArr_copy = copy.deepcopy(genoArr)
 
-genoArr_copy = copy.deepcopy(genoArr)
+	# with 2 components
+	pca2 = PCA(n_components=2)
+	pca.fit(genoArr_copy)
+	print(pca2)
+	#print(pca2.explained_variance_ratio_)
+	print(genoArr_copy)
+	print('\n\n\n')
 
-pca2 = PCA(n_components=2)
-pca.fit(genoArr_copy)
-print(pca2)
-#print(pca2.explained_variance_ratio_)
-print(genoArr_copy)
-print('\n\n\n')
+	# with 2 components and transform data in place
+	pca2_trans = PCA(n_components=2)
+	genoArr_trans = pca2_trans.fit_transform(genoArr_copy)
+	print(pca2_trans)
+	#print(pca2_trans.explained_variance_ratio_) 
+	print(genoArr_trans)
 
-pca2_trans = PCA(n_components=2)
-genoArr_trans = pca2_trans.fit_transform(genoArr_copy)
-print(pca2_trans)
-#print(pca2_trans.explained_variance_ratio_) 
-print(genoArr_trans)
+	# with 10 components, first 2 components are same as before
+	pca10_trans = PCA(n_components = 10)
+	genoArr_trans10 = pca10_trans.fit_transform(genoArr_copy)
+	print(genoArr_trans10)
 
-
-pca10_trans = PCA(n_components = 10)
-genoArr_trans10 = pca10_trans.fit_transform(genoArr_copy)
-print(genoArr_trans10)
+	
 # TODO convert both indivs_copy[i].geno and genoArr_copy to components, then run kmeans
 # TODO cluster on 2, 10, 100, and M components, see if diff
 # TODO plot on PC1 and PC2, color-coded by true population
