@@ -7,6 +7,7 @@ TODO decide final pops in parseHapmap and hardcode appropriate labels
 # TODO why is sklearn's pca so much slower here than on iris dataset (N=150, 4 features)???
 #		and also slower than exact same geno data run interactively
 
+# TODO maybe take mean cluster homogeneity over multiple runs - smoother?
 
 >>> timeit.timeit(pca_i)
 170.08807396888733
@@ -16,34 +17,11 @@ import kmeans
 #import EM # TODO finish EM
 
 import parseHapmap
-#import PCA_nocluster
+import PCA_nocluster
 import copy
 import timeit
 import random
 import numpy as np
-
-from sklearn.decomposition import PCA, TruncatedSVD, SparsePCA
-#import sklearn.decomposition.IncrementalPCA
-
-
-
-def pca_transform(indivs, genoArr, n_components):
-	'''transforms genotypes into components and returns sklearn PCA obj. 
-	note: alters input indivs and genoArr, so pass in copy if needed'''
-
-	# run PCA on genotypes, transform genotypes into components
-	pcaObj = PCA(n_components = n_components)
-	pcaObj.fit(genoArr)
-	genoArr = pcaObj.transform(genoArr)
-
-	# also transform genotypes of indivs into components
-	for i in range(len(indivs)):
-		indivs[i].geno = genoArr[i]
-
-	# can then run kmeans on resulting components, updating assigned cluster for each
-	#centers = kmeans(indivs, genos, k, maxIter = 10000, verbose = False)
-
-	return pcaObj, genoArr  # list of indiv objs get updated, don't need to return
 
 
 def majorityPop(indivs, k):
@@ -95,7 +73,7 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 	pcaTime = 0
 	def pca_i():
 		'''zero input fxn for timeit'''
-		return pca_transform(indivs_copy, genoArr_copy, n_components)
+		return PCA_nocluster.pca_transform(indivs_copy, genoArr_copy, n_components)
 
 	if usePCA:
 		# TODO why this part takes so long? seems to work fine outside of timeit
@@ -105,7 +83,7 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 		pcaObj, genoArr_copy = pca_i()
 		pcaEnd = timeit.default_timer()
 		pcaTime = pcaEnd - pcaStart
-		
+
 		# have to run PCA outside of timeit to get actual components
 		# note: pca_transform(...) returns the pcaObj, can be used for analysis elsewhere
 		# 		or visualizing a single run
@@ -153,7 +131,7 @@ print("Using DEU, CHB and MKK") # TODO update if i change pops
 def runBenchmark_multiNM(n_components = 10):
 	# TODO currently uses PCA all the time
 
-	M = 500 #M = 10000
+	M = 10000
 	K = 3
 	#print("Benchmarking K-means, varying N with M = %d, K = %d" % (M, K))
 	print("Benchmarking PCA + K-means, varying N with M = %d, K = %d, n_components = %d" % (M, K, n_components))
@@ -182,7 +160,7 @@ def runBenchmark_multiNM(n_components = 10):
 
 
 	# output file:
-	print("writing kmeans_N results to file")
+	print("writing pca kmeans_N results to file")
 	#print("writing kmeans_N results to file")
 	#outfName = "results_kmeans_N.txt"
 	outfBase = 'results_pca%d_kmeans_N_M%d' % (n_components,M)
@@ -207,7 +185,7 @@ def runBenchmark_multiNM(n_components = 10):
 
 	# lists of results
 	#kmeans_M = range(200, 20000, 200) # the value of M used for the test
-	kmeans_M = range(200, 800, 200) + range(1, 200, 20) # the value of M used for the test
+	kmeans_M = range(200, 2000, 200) # the value of M used for the test
 	kmeansObj_M = []
 	kmeansMajFrac_avg_M = []
 	kmeansTime_M = []
@@ -224,8 +202,8 @@ def runBenchmark_multiNM(n_components = 10):
 		kmeansMajFracs_M.append(kmeansMajFracs)
 
 	# output file:
-	print("writing kmeans_M results to file")
-	outfBase = 'results_pca%d_kmeans_M_N%d' % (n_components,N)
+	print("writing pca kmeans_M results to file")
+	outfBase = 'results_pca%d_kmeans_M_N%d' % (n_components, N)
 
 	with open(outfBase + ".txt", 'w') as outf:
 		outf.write('\t'.join(['M', 'kmeans_obj', 'kmeans_majFrac_avg', 'kmeans_time', 'pca_time']) + '\n')
@@ -243,8 +221,8 @@ def runBenchmark_multiNM(n_components = 10):
 
 '''
 N = 100
-M = 20
-n_components = 2
+M = 20000
+n_components = 5
 indices = random.sample(range(len(genoArr_)), N)
 indivs_copy = np.array([copy.deepcopy(indivs_[i]) for i in indices])
 for i in range(N):
@@ -253,17 +231,14 @@ for i in range(N):
 
 genoArr_copy = np.array([genoArr_[i][:M] for i in indices])
 print("starting pca_transform")
-pcaObj, genoArr_copy = pca_transform(indivs_copy, genoArr_copy, n_components)
+pcaObj, genoArr_copy = PCA_nocluster.pca_transform(indivs_copy, genoArr_copy, n_components)
 print("finished pca_transform")
 '''
-runBenchmark(N=20, M=4, K=3, usePCA=True, n_components=2)
 
+#runBenchmark(N=200, M=200, K=3, usePCA=True, n_components=2)
 
 # run benchmarks with PCA for varying number of components
-'''
-for n_components in [1,2,10,50]:
+
+for n_components in [2,10,50,100]:
 	print("running n_components = %d" % n_components)
 	runBenchmark_multiNM(n_components)
-'''
-
-

@@ -38,7 +38,7 @@ def examples():
 	print(genoArr_trans10)
 
 
-# TODO convert both indivs_copy[i].geno and genoArr_copy to components, then run kmeans
+# done - convert both indivs_copy[i].geno and genoArr_copy to components, then run kmeans
 # TODO cluster on 1, 2, 10, 100, and M components, see if diff results
 # TODO plot on PC1 and PC2, color-coded by true population
 # TODO test whether clusters on same data are identical w/wo pca
@@ -50,7 +50,8 @@ def pca_transform(indivs, genoArr, n_components):
 
 	# run PCA on genotypes, transform genotypes into components
 	pcaObj = PCA(n_components = n_components)
-	pcaObj.fit_transform(genoArr)
+	pcaObj.fit(genoArr)
+	genoArr = pcaObj.transform(genoArr)
 
 	# also transform genotypes of indivs into components
 	for i in range(len(indivs)):
@@ -59,8 +60,7 @@ def pca_transform(indivs, genoArr, n_components):
 	# can then run kmeans on resulting components, updating assigned cluster for each
 	#centers = kmeans(indivs, genos, k, maxIter = 10000, verbose = False)
 
-	return pcaObj, indivs, genoArr
-	# not sure why indivs and genoArr aren't getting updated after being passed in
+	return pcaObj, genoArr  # list of indiv objs get updated, don't need to return
 
 
 # given clustered indivs and genotypes as components
