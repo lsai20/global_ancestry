@@ -3,9 +3,15 @@ TODO come up with some functions to measure cluster quality
 	(k means objective function, inter-cluster distance)
 TODO decide final pops in parseHapmap and hardcode appropriate labels
 '''
-
+'''
 # TODO why is sklearn's pca so much slower here than on iris dataset (N=150, 4 features)???
+#		and also slower than exact same geno data run interactively
 
+
+>>> timeit.timeit(pca_i)
+170.08807396888733
+which is 3 min. but it only took a few sec to run pca_i().
+'''
 import kmeans
 #import EM # TODO finish EM
 
@@ -26,8 +32,9 @@ def pca_transform(indivs, genoArr, n_components):
 	note: alters input indivs and genoArr, so pass in copy if needed'''
 
 	# run PCA on genotypes, transform genotypes into components
-	pcaObj = SparsePCA(n_components = n_components)
-	pcaObj.fit_transform(genoArr)
+	pcaObj = PCA(n_components = n_components)
+	pcaObj.fit(genoArr)
+	genoArr = pcaObj.transform(genoArr)
 
 	# also transform genotypes of indivs into components
 	for i in range(len(indivs)):
@@ -36,9 +43,7 @@ def pca_transform(indivs, genoArr, n_components):
 	# can then run kmeans on resulting components, updating assigned cluster for each
 	#centers = kmeans(indivs, genos, k, maxIter = 10000, verbose = False)
 
-	return pcaObj, indivs, genoArr
-	# not sure why indivs and genoArr aren't getting updated after being passed in
-
+	return pcaObj, genoArr  # list of indiv objs get updated, don't need to return
 
 
 def majorityPop(indivs, k):
@@ -75,13 +80,13 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 	#	along with true frac count
 
 	# sample N indivs without replacement, and also get first M snps for each geno
-	indices = random.sample(range(len(genoArr)), N)
-	indivs_copy = np.array([copy.deepcopy(indivs[i]) for i in indices])
+	indices = random.sample(range(len(genoArr_)), N)
+	indivs_copy = np.array([copy.deepcopy(indivs_[i]) for i in indices])
 	for i in range(N):
 		indivs_copy[i].geno = np.array(indivs_copy[i].geno[:M])
 		indivs_copy[i].j = i 		# also update position in new indiv list
 
-	genoArr_copy = np.array([genoArr[i][:M] for i in indices])
+	genoArr_copy = np.array([genoArr_[i][:M] for i in indices])
 
 	# old version: just take first N since already shuffled
 	#indivs_copy = copy.deepcopy(indivs[:N])
@@ -90,13 +95,17 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 	pcaTime = 0
 	def pca_i():
 		'''zero input fxn for timeit'''
-		pca_transform(indivs_copy, genoArr_copy, n_components)
+		return pca_transform(indivs_copy, genoArr_copy, n_components)
 
 	if usePCA:
+		# TODO why this part takes so long? seems to work fine outside of timeit
 		print("timing pca...")
-		pcaTime = timeit.timeit(pca_i) # only run once since it changes size of genos
-		#print(genoArr_copy)			# check that genoArr_copy was transformed properly
-
+		#pcaObj, genoArr_copy = pca_transform(indivs_copy, genoArr_copy, n_components)
+		pcaStart = timeit.default_timer()
+		pcaObj, genoArr_copy = pca_i()
+		pcaEnd = timeit.default_timer()
+		pcaTime = pcaEnd - pcaStart
+		
 		# have to run PCA outside of timeit to get actual components
 		# note: pca_transform(...) returns the pcaObj, can be used for analysis elsewhere
 		# 		or visualizing a single run
@@ -137,7 +146,7 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 # actual M = 20109
 # true K = 3 (CHB, MKK, CEU)
 
-indivs, genoArr = parseHapmap.runParse()
+indivs_, genoArr_ = parseHapmap.runParse()
 print("Using DEU, CHB and MKK") # TODO update if i change pops
 # though uneven pop size may be good to show weakness of kmeans
 
@@ -232,9 +241,22 @@ def runBenchmark_multiNM(n_components = 10):
 
 	return
 
+'''
+N = 100
+M = 20
+n_components = 2
+indices = random.sample(range(len(genoArr_)), N)
+indivs_copy = np.array([copy.deepcopy(indivs_[i]) for i in indices])
+for i in range(N):
+	indivs_copy[i].geno = np.array(indivs_copy[i].geno[:M])
+	indivs_copy[i].j = i 		# also update position in new indiv list
 
-
-runBenchmark(N=20, M=10, K=3, usePCA=True, n_components=2)
+genoArr_copy = np.array([genoArr_[i][:M] for i in indices])
+print("starting pca_transform")
+pcaObj, genoArr_copy = pca_transform(indivs_copy, genoArr_copy, n_components)
+print("finished pca_transform")
+'''
+runBenchmark(N=20, M=4, K=3, usePCA=True, n_components=2)
 
 
 # run benchmarks with PCA for varying number of components
