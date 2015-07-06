@@ -1,10 +1,6 @@
 # alternate clustering:
 # perform PCA and then apply kmeans to components
 
-import parseHapmap
-import kmeans
-
-import copy
 import numpy as np
 from sklearn.decomposition import PCA
 
@@ -41,15 +37,15 @@ def examples():
 	genoArr_trans10 = pca10_trans.fit_transform(genoArr_copy)
 	print(genoArr_trans10)
 
-	
+
 # TODO convert both indivs_copy[i].geno and genoArr_copy to components, then run kmeans
-# TODO cluster on 2, 10, 100, and M components, see if diff
+# TODO cluster on 1, 2, 10, 100, and M components, see if diff results
 # TODO plot on PC1 and PC2, color-coded by true population
 # TODO test whether clusters on same data are identical w/wo pca
 
 
-def pca_and_kmeans(indivs, genoArr, n_components, k):
-	'''transforms genotypes into components and runs kmeans. 
+def pca_transform(indivs, genoArr, n_components):
+	'''transforms genotypes into components and returns sklearn PCA obj. 
 	note: alters input indivs and genoArr, so pass in copy if needed'''
 
 	# run PCA on genotypes, transform genotypes into components
@@ -60,8 +56,23 @@ def pca_and_kmeans(indivs, genoArr, n_components, k):
 	for i in range(len(indivs)):
 		indivs[i].geno = genoArr[i]
 
-	# run kmeans on resulting components, updating assigned cluster for each
-	centers = kmeans(indivs, genos, k, maxIter = 10000, verbose = False)
+	# can then run kmeans on resulting components, updating assigned cluster for each
+	#centers = kmeans(indivs, genos, k, maxIter = 10000, verbose = False)
 
-	return pcaObj
+	return pcaObj, indivs, genoArr
+	# not sure why indivs and genoArr aren't getting updated after being passed in
+
+
+# given clustered indivs and genotypes as components
+def makeClusterTable(indivs):
+	'''TODO'''
+	# write col for each assigned cluster or use matplotlib
+	return
+
+
+def timePCA():
+	'''PCA very slow, time it on varying N and M'''
+	def pca_i():
+		'''zero input fxn for timeit'''
+		PCA.pca_transform(indivs_copy, genoArr_copy, n_components)
 
