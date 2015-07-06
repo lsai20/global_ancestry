@@ -5,7 +5,19 @@ import scipy.spatial.distance as dist
 # NOTE: this file is tests to help make design choices. this is not overall benchmarking.
 
 
+def myfun():
+    start = time.time()
+    sorted(reversed(range(100000)))
+    end = time.time()
+    timetime = end-start
 
+    start = time.clock()
+    sorted(reversed(range(100000)))
+    end = time.clock()
+    clocktime = end-start
+
+    timeittime = timeit.timeit("sorted(reversed(range(100000)))", number = 1)
+    return timetime, clocktime, timeittime
 
 '''
 # EUCLIDEAN DISTANCE

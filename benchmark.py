@@ -12,6 +12,12 @@ TODO decide final pops in parseHapmap and hardcode appropriate labels
 >>> timeit.timeit(pca_i)
 170.08807396888733
 which is 3 min. but it only took a few sec to run pca_i().
+
+issue with timeit.default_timer (which is time.time() probably) is that time for a trial
+probably correlated due to background processes since all the trials with same N were run at the same time
+
+TODO update code to use timeit, and avg cluster homogeneity 10x
+TODO the issue was just that timeit runs 1000000 iterations by default, which is 300 hours if each iter takes a sec
 '''
 import kmeans
 #import EM # TODO finish EM
@@ -23,6 +29,7 @@ import timeit
 import random
 import numpy as np
 
+import time
 
 def majorityPop(indivs, k):
 	'''return majority element and size of majority in each cluster.
@@ -65,29 +72,18 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 		indivs_copy[i].j = i 		# also update position in new indiv list
 
 	genoArr_copy = np.array([genoArr_[i][:M] for i in indices])
+	
 
-	# old version: just take first N since already shuffled
-	#indivs_copy = copy.deepcopy(indivs[:N])
-	#genoArr_copy = copy.deepcopy(genoArr[:N])		
-
+	### TIMING ###
 	pcaTime = 0
 	def pca_i():
 		'''zero input fxn for timeit'''
 		return PCA_nocluster.pca_transform(indivs_copy, genoArr_copy, n_components)
 
 	if usePCA:
-		# TODO why this part takes so long? seems to work fine outside of timeit
-		print("timing pca...")
-		#pcaObj, genoArr_copy = pca_transform(indivs_copy, genoArr_copy, n_components)
-		pcaStart = timeit.default_timer()
-		pcaObj, genoArr_copy = pca_i()
-		pcaEnd = timeit.default_timer()
-		pcaTime = pcaEnd - pcaStart
-
-		# have to run PCA outside of timeit to get actual components
-		# note: pca_transform(...) returns the pcaObj, can be used for analysis elsewhere
-		# 		or visualizing a single run
-		#pcaObj, indivs_copy, genoArr_copy = PCA.pca_transform(indivs_copy, genoArr_copy, n_components)
+		print("timing pca...") # avg 10 runs. genoArr_copy isn't changed from run-to-run
+		#(indivs_copy does get changed, but shouldn't affect run since it restarts each time)
+		pcaTime = timeit.timeit(pca_i, number = 10)/10.0 
 		print(indivs_copy[0].geno)
 
 	def kmeans_i():
@@ -98,17 +94,23 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 	print("timing k-means 10x...")
 	kmeansTime = timeit.timeit(kmeans_i, number = 10)/10.0 
 
-	# measure with kmeans objective fxn
-	centers = kmeans.kmeans(indivs_copy, genoArr_copy, K, maxIter = 1000, verbose = True)
-	kmeansObj = kmeans.kmeansObj(indivs_copy, centers)
-	majPops, majFracs, clusterSizes = majorityPop(indivs_copy, K)
+	### QUALITY ###
 
-	# majPops[s] = majority pop of cluster s
-	# majFracs[s] = % cluster s that is max 
+	for run in range(10):
+		# measure with kmeans objective fxn
+		if usePCA:
+			pcaObj, genoArr_copy = PCA_nocluster.pca_transform(indivs_copy, genoArr_copy, n_components)
 
-	# TODO should weight mean by size of cluster?
-	# TODO is it ok to weight homogeneity equal for cluster with 1 indiv and cluster with 1000
-	kmeansMajFrac_avg = 1.0*sum(majFracs)/K
+		centers = kmeans.kmeans(indivs_copy, genoArr_copy, K, maxIter = 1000, verbose = False)
+		kmeansObj = kmeans.kmeansObj(indivs_copy, centers)
+		majPops, majFracs, clusterSizes = majorityPop(indivs_copy, K)
+
+		# majPops[s] = majority pop of cluster s
+		# majFracs[s] = % cluster s that is max 
+
+		# TODO should weight mean by size of cluster?
+		# TODO is it ok to weight homogeneity equal for cluster with 1 indiv and cluster with 1000
+		kmeansMajFrac_avg = 1.0*sum(majFracs)/K
 
 	if usePCA: # return types w/e
 		return kmeansObj, kmeansMajFrac_avg, kmeansTime, majPops, majFracs, pcaTime
@@ -120,7 +122,7 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 		
 # repeat tests with and without PCA
 
-# actual N = 94 + 171 + 165 for CHB + MKK + CEU
+# actual N = 94 + 171 + 165 = 430 for CHB + MKK + CEU
 # actual M = 20109
 # true K = 3 (CHB, MKK, CEU)
 
@@ -128,11 +130,10 @@ indivs_, genoArr_ = parseHapmap.runParse()
 print("Using DEU, CHB and MKK") # TODO update if i change pops
 # though uneven pop size may be good to show weakness of kmeans
 
-def runBenchmark_multiNM(n_components = 10):
+def runBenchmark_multiNM(M, K, n_components = 10):
+	'''run tests for given number of components and write results to file'''
 	# TODO currently uses PCA all the time
 
-	M = 10000
-	K = 3
 	#print("Benchmarking K-means, varying N with M = %d, K = %d" % (M, K))
 	print("Benchmarking PCA + K-means, varying N with M = %d, K = %d, n_components = %d" % (M, K, n_components))
 
@@ -145,7 +146,7 @@ def runBenchmark_multiNM(n_components = 10):
 	kmeansMajFracs_N = []
 	pcaTime_N = []
 
-	for N in range(20, 200, 10): # could change skip size to get more data
+	for N in range(20, 410, 10): # sample N indivs randomly
 		print("Now testing N = %d" % N)
 		#kmeansObj, kmeansMajFrac_avg, kmeansTime, kmeansMajPops, kmeansMajFracs = runBenchmark(N, M, K)
 		kmeansObj, kmeansMajFrac_avg, kmeansTime, kmeansMajPops, kmeansMajFracs, pcaTime = runBenchmark(N, M, K, usePCA=True, n_components=n_components)
@@ -171,21 +172,20 @@ def runBenchmark_multiNM(n_components = 10):
 				[str(var) for var in [ kmeans_N[i], kmeansObj_N[i], kmeansMajFrac_avg_N[i], kmeansTime_N[i], pcaTime_N[i] ]]
 			) + "\n")
 
+	''' # write majority of each cluster to file
 	with open(outfBase + '_majorities.txt', 'w') as outf:
 		for i in range(len(kmeans_N)):
 			outf.write("\n".join(str(var) for var in kmeansMajPops_N[i] + kmeansMajFracs_N[i]) + "\n")
 		outf.write("\n")
+	'''
 
-
-	# repeat for varying M
-	N = 150
-	K = 3
+	# repeat for varying M, use first M snps
 	#print("Benchmarking K-means, varying M with N = %d, K = %d" % (N, K))
 	print("Benchmarking PCA + K-means, varying M with N = %d, K = %d, n_components = %d" % (N, K, n_components))
 
 	# lists of results
 	#kmeans_M = range(200, 20000, 200) # the value of M used for the test
-	kmeans_M = range(200, 2000, 200) # the value of M used for the test
+	kmeans_M = range(200, 20200, 200) # the value of M used for the test
 	kmeansObj_M = []
 	kmeansMajFrac_avg_M = []
 	kmeansTime_M = []
@@ -212,14 +212,17 @@ def runBenchmark_multiNM(n_components = 10):
 				[str(var) for var in [ kmeans_M[i], kmeansObj_M[i], kmeansMajFrac_avg_M[i], kmeansTime_M[i], pcaTime_N[i] ]]
 			) + "\n")
 
+	''' # write majority of each cluster to file
 	with open(outfBase + "_majorities.txt", 'w') as outf:
 		for i in range(len(kmeans_M)):
 			outf.write("\n".join(str(var) for var in kmeansMajPops_M[i] + kmeansMajFracs_M[i]) + "\n")
 		outf.write("\n")
+	'''
 
 	return
 
-'''
+
+''' # testing if copy is successful
 N = 100
 M = 20000
 n_components = 5
@@ -235,10 +238,21 @@ pcaObj, genoArr_copy = PCA_nocluster.pca_transform(indivs_copy, genoArr_copy, n_
 print("finished pca_transform")
 '''
 
-#runBenchmark(N=200, M=200, K=3, usePCA=True, n_components=2)
+# testing with one benchmark
+runBenchmark(N=200, M=200, K=3, usePCA=True, n_components=2)
 
 # run benchmarks with PCA for varying number of components
-
-for n_components in [2,10,50,100]:
+'''
+# default values of N,M,K (when not varied for testing)
+N = 200
+M = 10000
+K = 3
+for n_components in [2, 100]: #[2,10,50,100]:
 	print("running n_components = %d" % n_components)
-	runBenchmark_multiNM(n_components)
+	runBenchmark_multiNM(N,M,K,n_components)
+
+'''
+# note: pca_transform(...) returns the pcaObj, can be used for analysis elsewhere
+# 		or visualizing a single run
+
+
