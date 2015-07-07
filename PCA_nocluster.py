@@ -39,10 +39,13 @@ def examples():
 
 
 # done - convert both indivs_copy[i].geno and genoArr_copy to components, then run kmeans
-# TODO cluster on 1, 2, 10, 100, and M components, see if diff results
+# done - cluster on 1, 2, 10, 100, and M components, see if diff results
 # TODO plot on PC1 and PC2, color-coded by true population
+# TODO plot percent variance explained as a function of component, for 100 components and large N/M
 # TODO test whether clusters on same data are identical w/wo pca
 
+# note: pca_transform(...) returns the pcaObj, can be used for analysis elsewhere
+# 		or visualizing a single run
 
 def pca_transform(indivs, genoArr, n_components):
 	'''transforms genotypes into components and returns sklearn PCA obj. 
