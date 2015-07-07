@@ -99,7 +99,7 @@ def kmeans(indivs, genos, k, maxIter = 10000, verbose = False):
 
 	# if fail to pick within allowed tries
 	if centers == None:
-		print("ERROR: unable to pick k = %d unique initial center values after 3+ attempts" % k)
+		print("ERROR: unable to pick k = %d unique initial center values after %d attempts" % (k,numTries))
 		print("Your data may not contain enough unique values for k = %d clusters, or the cluster sizes may be very uneven." % k)
 		print("Consider using a smaller k, or using an alternative to k-means clustering.")
 		print("Now quitting.")
@@ -122,6 +122,14 @@ def kmeans(indivs, genos, k, maxIter = 10000, verbose = False):
 		noneUpdated = True 	# if it converges (no update to centers), bail
 
 		for center in centers:
+			if not center.members: # if cluster empty, move a random pt into this cluster
+				if verbose:
+					print("empty cluster in iter %d, moving a point" % t)
+				movej = random.choice(range(N))
+				center.members = [movej]
+				indivs[movej].assignedPop = center.label
+				noneUpdated = False
+
 			a = genos[center.members,] # rows that are member of this center
 
 			centroidGeno = np.mean(a, axis = 0) # row of col avgs

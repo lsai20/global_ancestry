@@ -4,6 +4,7 @@
 '''
 import kmeans
 #import EM # TODO finish EM
+# TODO why is pca time zero for pca with varying M?
 
 import parseHapmap
 import PCA_nocluster
@@ -65,7 +66,7 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 		return PCA_nocluster.pca_transform(indivs_copy, genoArr_copy, n_components)
 
 	if usePCA:
-		#print("timing pca...") # avg 2 runs. genoArr_copy isn't changed from run-to-run
+		#print("timing pca...") # test 1 runs. genoArr_copy isn't changed from run-to-run
 		#(indivs_copy does get changed, but shouldn't affect run since it restarts each time)
 		# unlike kmeans, pca is deterministic so runtime shouldn't vary. also pca step is slower, bottleneck.
 		genoArr_copy_geno = genoArr_copy  # make a copy of genotype data first (as opposed to components)
@@ -88,6 +89,8 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 	majFracAvgsByRun = np.zeros(10)
 
 	for run in range(10):
+		a = np.asarray_chkfinite(indivs_copy)
+		a = np.asarray_chkfinite(genoArr_copy)
 		centers = kmeans.kmeans(indivs_copy, genoArr_copy, K, maxIter = 1000, verbose = False)
 		kmeansObj = kmeans.kmeansObj(indivs_copy, centers)
 		majPops, majFracs, clusterSizes = majorityPop(indivs_copy, K)
@@ -109,13 +112,12 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 # true K = 3 (CHB, MKK, CEU)
 
 indivs_, genoArr_ = parseHapmap.runParse()
-print("Using CEU, CHB and MKK") # TODO update if i change pops
-# though uneven pop size may be good to show weakness of kmeans
+print("Using CEU, CHB and MKK") # update if you use different pops. here, varying pop size
 
 def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 	'''run tests for given number of components and write results to file. Use input as default N,M,k'''
 
-	#print("Benchmarking K-means, varying N with M = %d, K = %d" % (M, K))
+	'''
 	print("Benchmarking PCA + K-means, varying N with M = %d, K = %d, n_components = %d" % (Md, K, n_components))
 
 	# lists of results
@@ -128,9 +130,8 @@ def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 	majFracs_N = []
 	pcaTime_N = []
 
-	for N in range(20, 410, 10): # sample N indivs randomly
+	for N in range(20, 401, 10): # sample N indivs randomly
 		print("Now testing N = %d" % N)
-		#kmeansObj, majFrac_avg, kmeansTime, majPops, majFracs = runBenchmark(N, M, K)
 		kmeansObj, majFrac_avg, majFrac_std, kmeansTime, majPops, majFracs, pcaTime = runBenchmark(N, Md, K, usePCA=usePCA, n_components=n_components)
 
 		kmeans_N.append(N)
@@ -156,13 +157,14 @@ def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 				[str(var) for var in [ kmeans_N[i], kmeansObj_N[i], majFrac_avg_N[i], majFrac_avg_N[i], kmeansTime_N[i], pcaTime_N[i] ]]
 			) + "\n")
 
+	'''
+
 	# repeat for varying M, use first M snps
 	#print("Benchmarking K-means, varying M with N = %d, K = %d" % (N, K))
 	print("Benchmarking PCA + K-means, varying M with N = %d, K = %d, n_components = %d" % (Nd, K, n_components))
 
 	# lists of results
-	#kmeans_M = range(200, 20000, 200) # the value of M used for the test
-	kmeans_M = range(200, 20200, 200) # the value of M used for the test
+	kmeans_M = range(200, 20001, 200) # the value of M used for the test
 	kmeansObj_M = []
 	majFrac_avg_M = []
 	majFrac_std_M = []
@@ -181,6 +183,11 @@ def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 		kmeansTime_M.append(kmeansTime)
 		majPops_M.append(majPops)
 		majFracs_M.append(majFracs)
+		pcaTime_M.append(pcaTime)
+	# TODO
+	print(len(kmeans_M))
+	print(len(kmeansObj_M))
+	print(len(pcaTime_M))
 
 	# output file:
 	outfBase = 'results_pca%d_kmeans_M_N%d' % (n_components, Nd)
@@ -191,9 +198,8 @@ def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 		outf.write('\t'.join(['M', 'kmeans_obj', 'majFrac_avg', 'majFrac_std','kmeans_time', 'pca_time']) + '\n')
 		for i in range(len(kmeans_M)):
 			outf.write("\t".join(
-				[str(var) for var in [ kmeans_M[i], kmeansObj_M[i], majFrac_avg_M[i], majFrac_std_M[i], kmeansTime_M[i], pcaTime_N[i] ]]
+				[str(var) for var in [ kmeans_M[i], kmeansObj_M[i], majFrac_avg_M[i], majFrac_std_M[i], kmeansTime_M[i], pcaTime_M[i] ]]
 			) + "\n")
-
 
 	return
 
@@ -221,7 +227,7 @@ print("finished pca_transform")
 
 # default values of N,M,K (when not varied for testing)
 N = 250
-M = 10000
+M = 9000
 K = 3
 
 for n_components in [2, 10]: #[2,10,50,100]:
