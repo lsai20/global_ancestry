@@ -1,3 +1,4 @@
+# now redundant w usePCA=False on benchmark.py
 import kmeans
 #import EM # TODO finish EM
 

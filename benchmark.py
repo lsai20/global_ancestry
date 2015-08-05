@@ -1,11 +1,8 @@
 '''
-# TODO weirdass bug array containing nan spdist
+# fixed: array containing nan spdist - caused by empty cluster
 
 '''
 import kmeans
-#import EM # TODO finish EM
-# TODO why is pca time zero for pca with varying M?
-
 import parseHapmap
 import PCA_nocluster
 import copy
@@ -117,7 +114,7 @@ print("Using CEU, CHB and MKK") # update if you use different pops. here, varyin
 def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 	'''run tests for given number of components and write results to file. Use input as default N,M,k'''
 
-	'''
+
 	print("Benchmarking PCA + K-means, varying N with M = %d, K = %d, n_components = %d" % (Md, K, n_components))
 
 	# lists of results
@@ -157,7 +154,6 @@ def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 				[str(var) for var in [ kmeans_N[i], kmeansObj_N[i], majFrac_avg_N[i], majFrac_avg_N[i], kmeansTime_N[i], pcaTime_N[i] ]]
 			) + "\n")
 
-	'''
 
 	# repeat for varying M, use first M snps
 	#print("Benchmarking K-means, varying M with N = %d, K = %d" % (N, K))
@@ -176,7 +172,7 @@ def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 
 	for M in kmeans_M: 
 		print("Now testing M = %d" % M)
-		kmeansObj, majFrac_avg, majFrac_std, kmeansTime, majPops, majFracs, pcaTime = runBenchmark(Nd, M, K)
+		kmeansObj, majFrac_avg, majFrac_std, kmeansTime, majPops, majFracs, pcaTime = runBenchmark(Nd, M, K, usePCA=usePCA)
 		kmeansObj_M.append(kmeansObj)
 		majFrac_avg_M.append(majFrac_avg)
 		majFrac_std_M.append(majFrac_std)
@@ -184,10 +180,6 @@ def runBenchmark_multiNM(Nd, Md, K, usePCA = False, n_components = 10):
 		majPops_M.append(majPops)
 		majFracs_M.append(majFracs)
 		pcaTime_M.append(pcaTime)
-	# TODO
-	print(len(kmeans_M))
-	print(len(kmeansObj_M))
-	print(len(pcaTime_M))
 
 	# output file:
 	outfBase = 'results_pca%d_kmeans_M_N%d' % (n_components, Nd)
