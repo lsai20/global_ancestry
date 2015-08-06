@@ -1,3 +1,4 @@
+# 
 # alternate clustering:
 # perform PCA and then apply kmeans to components
 
@@ -73,9 +74,4 @@ def makeClusterTable(indivs):
 	return
 
 
-def timePCA():
-	'''PCA very slow, time it on varying N and M'''
-	def pca_i():
-		'''zero input fxn for timeit'''
-		PCA.pca_transform(indivs_copy, genoArr_copy, n_components)
 

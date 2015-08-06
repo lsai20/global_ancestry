@@ -86,8 +86,8 @@ def runBenchmark(N=200, M=10000, K=3, usePCA=False, n_components=2):
 	majFracAvgsByRun = np.zeros(10)
 
 	for run in range(10):
-		a = np.asarray_chkfinite(indivs_copy)
-		a = np.asarray_chkfinite(genoArr_copy)
+		#a = np.asarray_chkfinite(indivs_copy)
+		#a = np.asarray_chkfinite(genoArr_copy)
 		centers = kmeans.kmeans(indivs_copy, genoArr_copy, K, maxIter = 1000, verbose = False)
 		kmeansObj = kmeans.kmeansObj(indivs_copy, centers)
 		majPops, majFracs, clusterSizes = majorityPop(indivs_copy, K)
