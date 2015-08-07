@@ -21,34 +21,43 @@ def makeInputCopies(N=250, M=9000):
 	return indivs_copy, genoArr_copy	
 
 def findVarExplained(N=250, M=9000, n_components = 100):
+	'''print list of var explained for each component'''
 	indivs_copy, genoArr_copy = makeInputCopies(N,M)
 	pcaObj = PCA_nocluster.PCA(n_components = n_components)
 	pcaObj.fit(genoArr_copy)
-	print(pcaObj.explained_variance_ratio_)
+	#print(pcaObj.explained_variance_ratio_)
+	for var in pcaObj.explained_variance_ratio_:
+		print(var)
 
 	return pcaObj
 
 
 def findPC1_PC2(N=250, M=9000):
+	'''print variance explained, and print tab-sep of
+	(PC1, PC2, truePop, assignedPop) for each indiv in a run'''
 	n_components = 2
 	K = 3
-
 	indivs_copy, genoArr_copy = makeInputCopies(N,M)
 
+	# get PC1 and PC2
 	pcaObj, genoArr_copy = PCA_nocluster.pca_transform(indivs_copy, genoArr_copy, n_components)
 
+	# get assignedPops
 	centers = kmeans.kmeans(indivs_copy, genoArr_copy, K, maxIter = 1000, verbose = False)
 
 	# indivs_copy: 
 	# 	.geno now transformed to have two components
 	# 	has both assigned and true pop
+	indivs_copy = sorted(indivs_copy, key=lambda indiv: indiv.truePop)
 	for indiv in indivs_copy:
-		# TODO use string formatting and make this a table
-		print(indiv.geno[0], indiv.geno[1], indiv.truePop, indiv.assignedPop)
+		s = '\t'.join([str(val) for val in [indiv.geno[0], indiv.geno[1], indiv.truePop, indiv.assignedPop]])
+		print(s)
+
+	return
 
 
-findVarExplained()
+findVarExplained(N=250,M=400)
 print("\n\n\n")
-findPC1_PC2()
+findPC1_PC2(N=250,M=400)
 
 
